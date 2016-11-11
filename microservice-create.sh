@@ -96,7 +96,7 @@ projectDirectory=$targetDirectory/$projectName
 rm -rf $projectDirectory
 
 #Create the directory structure
-mkdir $projectDirectory
+mkdir -p $projectDirectory
 cp -R $SOURCE_USER_PROJECT_PATH/src $projectDirectory/
 cp -R $SOURCE_USER_PROJECT_PATH/pom.xml $projectDirectory/
 cp -R $SOURCE_USER_PROJECT_PATH/.gitignore $projectDirectory/
