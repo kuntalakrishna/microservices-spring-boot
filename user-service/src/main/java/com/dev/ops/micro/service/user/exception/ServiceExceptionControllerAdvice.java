@@ -34,11 +34,27 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+/**
+ * The class Service Exception Controller Advice will give the last opportunity to catch the exceptions arising from the service.
+ * The exception logging is taken care in this class and this class is also responsible for deciding what kind of HTTP error to be thrown out of the service.
+ */
 @ControllerAdvice
 public class ServiceExceptionControllerAdvice extends ResponseEntityExceptionHandler {
 
+	/** The LOGGER. */
 	private static final Logger LOGGER = LogManager.getLogger(ServiceExceptionControllerAdvice.class);
 
+	/**
+	 * This is an overriden method which is responsible to handle validation exceptions.
+	 * The method iterates through the validation errors and constructs the message to be sent out of the services with validation errors.
+	 * Also, logs the error message to the log files which could help in analysis.
+	 *
+	 * @param ex the MethodArgumentNotValid Exception
+	 * @param headers the HTTP headers object
+	 * @param status the HTTP status object
+	 * @param request the WebRequest object containing the request details
+	 * @return the response entity containing the error message and HttpStatus
+	 */
 	@Override
 	protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
 		BindingResult result = ex.getBindingResult();
@@ -49,14 +65,14 @@ public class ServiceExceptionControllerAdvice extends ResponseEntityExceptionHan
 		}
 		Exception e = new ValidationException(validationErrors.toString());
 		LOGGER.error("Validation exception", e);
-		return this.handleExceptionInternal(e, validationErrors.toString(), new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
+		return this.handleExceptionInternal(e, validationErrors.toString(), headers, status, request);
 	}
 
 	/**
-	 * Handle all the service exceptions.
-	 * @param ex the exception
-	 * @param request the request
-	 * @return the response entity
+	 * Handle all the service exceptions and log the error message to the log files which could help in analysis.
+	 * @param ex the exception object
+	 * @param request the WebRequest object containing the request details
+	 * @return the response entity containing the error message and HttpStatus
 	 */
 	@ExceptionHandler(Exception.class)
 	protected ResponseEntity<Object> handleServiceException(Exception ex, WebRequest request) {
