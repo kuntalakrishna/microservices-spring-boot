@@ -1,9 +1,20 @@
-#/bin/bash# file : getProperty.sh
+#/bin/bash
+
+#*************************************************************************************************
+#    Author     : Krishna Kuntala
+#    Name       : microservice-create.sh
+#    Purpose    : Script for creating structure of new microservice with basic 
+#                 CRUD operations and structure with Swagger implementation.
+#    Assumption : user-service directory with microservice implementation and microservice-config.properties along with this sh file.
+#    Notes      :
+#
+#*************************************************************************************************
 
 #This pair of options tell the bash interpreter to exit whenever a command returns with a non-zero exit code.
 #set -e 
 #set -o pipefail
 
+#Defined all the constants used in this sh file.
 propertyFile=./microservice-config.properties
 SOURCE_USER_PROJECT_PATH='./user-service/'
 DTO_APPENDER="DTO"
@@ -36,10 +47,7 @@ function getPropertyFromFile() {
 # @param value to replace
 # @param fileName
 function replacePropertyInFile() {
-    #echo tttttttttttttttttttttttttttttttttttttttt
     escapedString=`escapeSpecialCharacters $2`
-    #echo $2
-    #echo -----------------------------------------
     sed -i "s/.*$1=.*/$1=$escapedString/" $3
 }
 
@@ -48,7 +56,7 @@ function escapeSpecialCharacters {
     echo $escapedString | sed 's/\//\\\//g'
 }
 
-#Get all the properties
+#Read all the properties from microservice-config.properties file.
 targetDirectory=`getPropertyFromFile target.directory.path $propertyFile`
 targetDirectory=`echo $targetDirectory | sed 's/\\\\/\//g'`
 entityName=`getPropertyFromFile entity.name $propertyFile`
@@ -91,16 +99,8 @@ echo projectName = $projectName
 echo packagesBaseDirectory = $packagesBaseDirectory
 echo '----------------------------------------------------------------------------------------------------'
 
+#source directory variables
 projectDirectory=$targetDirectory/$projectName
-
-rm -rf $projectDirectory
-
-#Create the directory structure
-mkdir -p $projectDirectory
-cp -R $SOURCE_USER_PROJECT_PATH/src $projectDirectory/
-cp -R $SOURCE_USER_PROJECT_PATH/pom.xml $projectDirectory/
-cp -R $SOURCE_USER_PROJECT_PATH/.gitignore $projectDirectory/
-mv $projectDirectory/src/main $projectDirectory/src/main_temp
 
 mainDirectory=$projectDirectory/src/main
 mainTempDirectory=$projectDirectory/src/main_temp
@@ -111,6 +111,15 @@ resourceDirectory=$mainDirectory/resources
 javaTempSourceDirectory=$mainTempDirectory/java
 resourceTempDirectory=$mainTempDirectory/resources
 
+rm -rf $projectDirectory
+
+#Create the directory structure for new micro service
+mkdir -p $projectDirectory
+cp -R $SOURCE_USER_PROJECT_PATH/src $projectDirectory/
+cp -R $SOURCE_USER_PROJECT_PATH/pom.xml $projectDirectory/
+cp -R $SOURCE_USER_PROJECT_PATH/.gitignore $projectDirectory/
+mv $projectDirectory/src/main $projectDirectory/src/main_temp
+
 mkdir -p $javaSourceDirectory/$packagesBaseDirectory
 mkdir -p $resourceDirectory
 mv $javaTempSourceDirectory/$USER_SERVICE_BASE_DIRECTORY/* $javaSourceDirectory/$packagesBaseDirectory
@@ -118,9 +127,10 @@ mv $resourceTempDirectory/ValidationMessages.properties $resourceDirectory
 mv $resourceTempDirectory/log4j.properties $resourceDirectory
 mv $resourceTempDirectory/static $resourceDirectory
 
-#Rename all the files which contains USER_SERVICE_ENTITY_NAME word in the file name.
+#Rename all the files which contains USER_SERVICE_ENTITY_NAME word in the file names.
 grep -rl $USER_SERVICE_ENTITY_NAME $mainDirectory | while read -r fileName ; do
     newFileName=`echo $fileName | sed 's/\(.*\)'$USER_SERVICE_ENTITY_NAME'/\1'$entityName'/g'`
+    #If there is changes in the file name then only rename/move the file.
     if [ $fileName != $newFileName ]
         then
         mv $fileName $newFileName
@@ -136,17 +146,18 @@ grep -rl $entityVariableName'_' $mainDirectory | xargs sed -i "s/${entityVariabl
 grep -rl $USER_SERVICE_ENTITY_UPPER_CASE_NAME $mainDirectory | xargs sed -i "s/$USER_SERVICE_ENTITY_UPPER_CASE_NAME/$entityTableNameUpperCase/g"
 grep -rl packageDeclarationForReplacement $mainDirectory | xargs sed -i "s/packageDeclarationForReplacement/$pomGroupId.$packageNameAppender/g"
 
-#Replacements for pom.xml
+#Replace related text in pom.xml
 sed -i "s/$USER_SERVICE_BASE_PACKAGE/packageDeclarationForReplacement/g" $projectDirectory/pom.xml
 sed -i "s/<artifactId>$USER_SERVICE_VARIABLE_NAME-$SERVICE_APPENDER<\/artifactId>/<artifactId>$projectName<\/artifactId>/g" $projectDirectory/pom.xml
 sed -i "s/<name>$USER_SERVICE_VARIABLE_NAME-$SERVICE_APPENDER<\/name>/<name>$projectName<\/name>/g" $projectDirectory/pom.xml
 sed -i "s/<finalName>$USER_SERVICE_VARIABLE_NAME/<finalName>$entityVariableName/g" $projectDirectory/pom.xml
 sed -i "s/packageDeclarationForReplacement/$pomGroupId.$packageNameAppender/g" $projectDirectory/pom.xml
 
-#Replacements for application.properties
+#Replace related text in application.properties
 sed -i "s/$USER_SERVICE_ENTITY_NAME/$entityName/g" $resourceTempDirectory/application.properties
 sed -i "s/\${$USER_SERVICE_VARIABLE_NAME/\${$packageNameAppender/g" $resourceTempDirectory/application.properties
 
+#Replace swagger related properties in application.properties
 replacePropertyInFile 'server.port' $servicePort $resourceTempDirectory/application.properties
 replacePropertyInFile 'swagger.termsOfServiceUrl' $swaggerTermsOfServiceUrl $resourceTempDirectory/application.properties
 replacePropertyInFile 'swagger.contact.name' $swaggerContactName $resourceTempDirectory/application.properties
@@ -155,13 +166,15 @@ replacePropertyInFile 'swagger.contact.email' $swaggerContactEmail $resourceTemp
 replacePropertyInFile 'swagger.license' $swaggerLicense $resourceTempDirectory/application.properties
 replacePropertyInFile 'swagger.licenseUrl' $swaggerLicenseUrl $resourceTempDirectory/application.properties
 
-#Correct log4j configuration
+#Make corrections in log4j configuration
 sed -i "s/$entityVariableName-$SERVICE_APPENDER/$projectName/g" $resourceDirectory/log4j.properties
 
 mv $resourceTempDirectory/application.properties $resourceDirectory
 rm -rf $mainTempDirectory
 
-#Create services.properties file
+#Create services.properties file which will hold database related properties provided in microservice-config.properties file. Also, we can include other properties as well which might change w.r.t. environment(dev, test, uat, prod).
+#While running the microservice, we will provide this file as external properties file to spring boot application which will resolve the properties referred in the application.
+#Later, we can choose to combine the properties from different service.properties into one services.properties and provide the same services.properties to all the spring boot services
 servicesPropertiesFile=$projectDirectory/$packageNameAppender'.service.properties'
 echo '#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------' >> $servicesPropertiesFile
 echo '#															'$entityName' '$SERVICE_APPENDER': START' >> $servicesPropertiesFile
