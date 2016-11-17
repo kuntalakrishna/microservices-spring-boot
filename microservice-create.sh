@@ -11,8 +11,8 @@
 #*************************************************************************************************
 
 #This pair of options tell the bash interpreter to exit whenever a command returns with a non-zero exit code.
-#set -e 
-#set -o pipefail
+set -e 
+set -o pipefail
 
 #Defined all the constants used in this sh file.
 propertyFile=./microservice-config.properties
@@ -66,6 +66,7 @@ servicePort=`getPropertyFromFile service.port $propertyFile`
 logDirectory=`getPropertyFromFile log.directory $propertyFile`
 pomGroupId=`getPropertyFromFile pom.groupId $propertyFile`
 pomVersion=`getPropertyFromFile pom.version $propertyFile`
+
 swaggerTermsOfServiceUrl=`getPropertyFromFile swagger.termsOfServiceUrl $propertyFile`
 swaggerContactName=`getPropertyFromFile swagger.contact.name $propertyFile`
 swaggerContactUrl=`getPropertyFromFile swagger.contact.url $propertyFile`
@@ -97,6 +98,7 @@ echo entityDTOName = $entityDTOName
 echo entityDTOVariableName = $entityDTOVariableName
 echo projectName = $projectName
 echo packagesBaseDirectory = $packagesBaseDirectory
+echo swaggerContactName = $swaggerContactName
 echo '----------------------------------------------------------------------------------------------------'
 
 #source directory variables
@@ -113,7 +115,7 @@ resourceTempDirectory=$mainTempDirectory/resources
 
 rm -rf $projectDirectory
 
-#Create the directory structure for new micro service
+echo -e "\n- Creating the directory structure for new micro service"
 mkdir -p $projectDirectory
 cp -R $SOURCE_USER_PROJECT_PATH/src $projectDirectory/
 cp -R $SOURCE_USER_PROJECT_PATH/pom.xml $projectDirectory/
@@ -127,7 +129,7 @@ mv $resourceTempDirectory/ValidationMessages.properties $resourceDirectory
 mv $resourceTempDirectory/log4j.properties $resourceDirectory
 mv $resourceTempDirectory/static $resourceDirectory
 
-#Rename all the files which contains USER_SERVICE_ENTITY_NAME word in the file names.
+echo -e "\n- Renaming all the files which contains USER_SERVICE_ENTITY_NAME word in the file names"
 grep -rl $USER_SERVICE_ENTITY_NAME $mainDirectory | while read -r fileName ; do
     newFileName=`echo $fileName | sed 's/\(.*\)'$USER_SERVICE_ENTITY_NAME'/\1'$entityName'/g'`
     #If there is changes in the file name then only rename/move the file.
@@ -137,7 +139,7 @@ grep -rl $USER_SERVICE_ENTITY_NAME $mainDirectory | while read -r fileName ; do
 	fi
 done
 
-#Rename the package declaration, Class names, variable references, log text, table names.
+echo -e "\n- Renaming the package declaration, Class names, variable references, log text, table names"
 grep -rl $USER_SERVICE_BASE_PACKAGE $mainDirectory | xargs sed -i "s/$USER_SERVICE_BASE_PACKAGE/packageDeclarationForReplacement/g"
 grep -rl $USER_SERVICE_ENTITY_NAME $mainDirectory | xargs sed -i "s/$USER_SERVICE_ENTITY_NAME/$entityName/g"
 grep -rl $USER_SERVICE_VARIABLE_NAME $mainDirectory | xargs sed -i "s/$USER_SERVICE_VARIABLE_NAME/$entityVariableName/g"
@@ -146,18 +148,18 @@ grep -rl $entityVariableName'_' $mainDirectory | xargs sed -i "s/${entityVariabl
 grep -rl $USER_SERVICE_ENTITY_UPPER_CASE_NAME $mainDirectory | xargs sed -i "s/$USER_SERVICE_ENTITY_UPPER_CASE_NAME/$entityTableNameUpperCase/g"
 grep -rl packageDeclarationForReplacement $mainDirectory | xargs sed -i "s/packageDeclarationForReplacement/$pomGroupId.$packageNameAppender/g"
 
-#Replace related text in pom.xml
+echo -e "\n- Replacing related text in pom.xml"
 sed -i "s/$USER_SERVICE_BASE_PACKAGE/packageDeclarationForReplacement/g" $projectDirectory/pom.xml
 sed -i "s/<artifactId>$USER_SERVICE_VARIABLE_NAME-$SERVICE_APPENDER<\/artifactId>/<artifactId>$projectName<\/artifactId>/g" $projectDirectory/pom.xml
 sed -i "s/<name>$USER_SERVICE_VARIABLE_NAME-$SERVICE_APPENDER<\/name>/<name>$projectName<\/name>/g" $projectDirectory/pom.xml
 sed -i "s/<finalName>$USER_SERVICE_VARIABLE_NAME/<finalName>$entityVariableName/g" $projectDirectory/pom.xml
 sed -i "s/packageDeclarationForReplacement/$pomGroupId.$packageNameAppender/g" $projectDirectory/pom.xml
 
-#Replace related text in application.properties
+echo -e "\n- Replacing related text in application.properties"
 sed -i "s/$USER_SERVICE_ENTITY_NAME/$entityName/g" $resourceTempDirectory/application.properties
 sed -i "s/\${$USER_SERVICE_VARIABLE_NAME/\${$packageNameAppender/g" $resourceTempDirectory/application.properties
 
-#Replace swagger related properties in application.properties
+echo -e "\n- Replacing swagger related properties in application.properties"
 replacePropertyInFile 'server.port' $servicePort $resourceTempDirectory/application.properties
 replacePropertyInFile 'swagger.termsOfServiceUrl' $swaggerTermsOfServiceUrl $resourceTempDirectory/application.properties
 replacePropertyInFile 'swagger.contact.name' $swaggerContactName $resourceTempDirectory/application.properties
@@ -166,12 +168,16 @@ replacePropertyInFile 'swagger.contact.email' $swaggerContactEmail $resourceTemp
 replacePropertyInFile 'swagger.license' $swaggerLicense $resourceTempDirectory/application.properties
 replacePropertyInFile 'swagger.licenseUrl' $swaggerLicenseUrl $resourceTempDirectory/application.properties
 
-#Make corrections in log4j configuration
+echo -e "\n- Making corrections in log4j configuration"
 sed -i "s/$entityVariableName-$SERVICE_APPENDER/$projectName/g" $resourceDirectory/log4j.properties
 
+echo -e "\n- Moving application.properties file to src/main/resources directory"
 mv $resourceTempDirectory/application.properties $resourceDirectory
+
+echo -e "\n- Deleting the source temp directory"
 rm -rf $mainTempDirectory
 
+echo -e "\n- Creating services.properties file"
 #Create services.properties file which will hold database related properties provided in microservice-config.properties file. Also, we can include other properties as well which might change w.r.t. environment(dev, test, uat, prod).
 #While running the microservice, we will provide this file as external properties file to spring boot application which will resolve the properties referred in the application.
 #Later, we can choose to combine the properties from different service.properties into one services.properties and provide the same services.properties to all the spring boot services
