@@ -46,14 +46,17 @@ function getPropertyFromFile() {
 # @param propertyName
 # @param value to replace
 # @param fileName
-function replacePropertyInFile() {
-    escapedString=`escapeSpecialCharacters $2`
+function replacePropertyInFile {
+    eval escapedString=$2
+    if [[ $2 == *"/"* ]]
+    then
+        escapedString=`escapeSpecialCharacters $2`
+    fi
     sed -i "s/.*$1=.*/$1=$escapedString/" $3
 }
 
 function escapeSpecialCharacters {
-    escapedString=$1
-    echo $escapedString | sed 's/\//\\\//g'
+    echo $1 | sed 's/\//\\\//g'
 }
 
 #Read all the properties from microservice-config.properties file.
@@ -160,12 +163,12 @@ sed -i "s/$USER_SERVICE_ENTITY_NAME/$entityName/g" $resourceTempDirectory/applic
 sed -i "s/\${$USER_SERVICE_VARIABLE_NAME/\${$packageNameAppender/g" $resourceTempDirectory/application.properties
 
 echo -e "\n- Replacing swagger related properties in application.properties"
-replacePropertyInFile 'server.port' $servicePort $resourceTempDirectory/application.properties
+replacePropertyInFile 'server.port' '${servicePort}' $resourceTempDirectory/application.properties
 replacePropertyInFile 'swagger.termsOfServiceUrl' $swaggerTermsOfServiceUrl $resourceTempDirectory/application.properties
-replacePropertyInFile 'swagger.contact.name' $swaggerContactName $resourceTempDirectory/application.properties
+replacePropertyInFile 'swagger.contact.name' '${swaggerContactName}' $resourceTempDirectory/application.properties
 replacePropertyInFile 'swagger.contact.url' $swaggerContactUrl $resourceTempDirectory/application.properties
-replacePropertyInFile 'swagger.contact.email' $swaggerContactEmail $resourceTempDirectory/application.properties
-replacePropertyInFile 'swagger.license' $swaggerLicense $resourceTempDirectory/application.properties
+replacePropertyInFile 'swagger.contact.email' '${swaggerContactEmail}' $resourceTempDirectory/application.properties
+replacePropertyInFile 'swagger.license' '${swaggerLicense}' $resourceTempDirectory/application.properties
 replacePropertyInFile 'swagger.licenseUrl' $swaggerLicenseUrl $resourceTempDirectory/application.properties
 
 echo -e "\n- Making corrections in log4j configuration"
