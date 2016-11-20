@@ -38,10 +38,11 @@ function getPropertyFromFile() {
     # substitute “.” with “\.” so that we can use it as sed expression
     propertyName=`echo $1 | sed -e 's/\./\\\./g'`
     fileName=$2;
-    cat $fileName | sed -n -e "s/^[ ]*//g;/^#/d;s/^$propertyName=//p" | tail -1
+	#Trim the property value as well once successfully read from the properties file.
+    cat $fileName | sed -n -e "s/^[ ]*//g;/^#/d;s/^$propertyName=//p" | tail -1 | sed 's/^[ ]*//;s/[ ]*$//'
 }
 
-# we will pass the property name and property file name as a parameter to this function
+# will pass the property name and property file name as a parameter to this function
 # in which we want to replace the property
 # @param propertyName
 # @param value to replace
@@ -55,8 +56,24 @@ function replacePropertyInFile {
     sed -i "s/.*$1=.*/$1=$escapedString/" $3
 }
 
+# Function to escape / values in a string
+# @param string in which / to be escaped
 function escapeSpecialCharacters {
     echo $1 | sed 's/\//\\\//g'
+}
+
+
+# Function to check whether the input string is valid
+# Currently checking only whether space character is present in a string or not
+# @param string which needs to be validated
+function isValid {
+    eval checkString=$1
+    if [[ $checkString == *" "* ]]
+    then
+        echo "Invalid input:" $checkString
+        echo -e "\nExiting the program . . ."
+        exit
+    fi
 }
 
 #Read all the properties from microservice-config.properties file.
@@ -89,6 +106,19 @@ entityDTOVariableName="$entityVariableName$DTO_APPENDER"
 projectName="`echo $entityVariableName | sed 's/[A-Z]/-\L&/'`-$SERVICE_APPENDER"
 packageNameAppender=`echo $entityVariableName | sed 's/[A-Z]/.\L&/'`
 packagesBaseDirectory=`echo $pomGroupId.$packageNameAppender | sed 's/\./\//g'`
+
+#Check if the inputs are valid
+isValid '${targetDirectory}'
+isValid '${entityName}'
+isValid '${entityTableName}'
+isValid '${servicePort}'
+isValid '${logDirectory}'
+isValid '${pomGroupId}'
+isValid '${pomVersion}'
+isValid '${swaggerTermsOfServiceUrl}'
+isValid '${swaggerContactUrl}'
+isValid '${swaggerContactEmail}'
+isValid '${swaggerLicenseUrl}'
 
 echo '----------------------------------------------------------------------------------------------------'
 echo '			Creating microservice with configurations'
